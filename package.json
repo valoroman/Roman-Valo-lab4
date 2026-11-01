@@ -1,0 +1,17 @@
+{
+  "name": "roman-valo-lab4",
+  "version": "1.0.0",
+  "description": "Лабораторна робота 4. Варіант 3. HTTP-сервер",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "dev": "node --watch main.js"
+  },
+  "keywords": [],
+  "author": "Роман Вальо",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  }
+}
