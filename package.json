@@ -13,5 +13,8 @@
   "type": "module",
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "commander": "^14.0.3"
   }
 }
