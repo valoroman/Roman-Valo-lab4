@@ -3,6 +3,7 @@
 
 import { Command } from 'commander';
 import fs from 'node:fs';
+import http from 'node:http';
 
 const program = new Command();
 
@@ -42,5 +43,105 @@ fs.access(options.input, fs.constants.F_OK, (err) => {
     return;
   }
 
-  console.log('Параметри перевірено:', options);
+  startServer();
 });
+
+// Перетворення числового значення з файлу.
+function toNumber(value) {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    return Number(value);
+  }
+  return NaN;
+}
+
+// Розбір JSON-масиву або NDJSON.
+function parseData(text) {
+  const content = text.trim();
+
+  const rows = content.startsWith('[')
+    ? JSON.parse(content)
+    : content.split(/\r?\n/)
+        .filter(line => line.trim() !== '')
+        .map(line => JSON.parse(line));
+
+  return rows.map(row => {
+    if (row === null || typeof row !== 'object' ||
+        Array.isArray(row)) {
+      throw new Error('Запис має бути JSON-об’єктом');
+    }
+
+    const price = toNumber(row.price);
+    const area = toNumber(row.area);
+    const furnishingstatus =
+      typeof row.furnishingstatus === 'string'
+        ? row.furnishingstatus.trim()
+        : '';
+
+    // Пропускаємо записи без потрібних коректних значень.
+    if (!Number.isFinite(price) || !Number.isFinite(area) ||
+        furnishingstatus === '') {
+      return null;
+    }
+
+    return { price, area, furnishingstatus };
+  }).filter(row => row !== null);
+}
+
+// Надсилання JSON із кодом стану та заголовком.
+function sendJson(res, status, data) {
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8'
+  });
+  res.end(JSON.stringify(data, null, 2));
+}
+
+function startServer() {
+  const server = http.createServer((req, res) => {
+    let url;
+
+    try {
+      url = new URL(req.url, 'http://localhost');
+    } catch {
+      sendJson(res, 400, { error: 'Некоректний URL' });
+      return;
+    }
+
+    if (req.method !== 'GET' || url.pathname !== '/') {
+      sendJson(res, 404, { error: 'Маршрут не знайдено' });
+      return;
+    }
+
+    // Читаємо файл заново під час кожного запиту.
+    fs.readFile(options.input, 'utf8', (err, text) => {
+      if (err) {
+        sendJson(res, 500, { error: 'Не вдалося прочитати файл' });
+        return;
+      }
+
+      let records;
+
+      try {
+        records = parseData(text);
+      } catch {
+        sendJson(res, 500, { error: 'Некоректний формат даних' });
+        return;
+      }
+
+      sendJson(res, 200, records);
+    });
+  });
+
+  server.on('error', (err) => {
+    console.error(`Помилка сервера: ${err.message}`);
+    process.exitCode = 1;
+  });
+
+  server.listen(options.port, options.host, () => {
+    console.log(
+      `Сервер працює: http://${options.host}:${options.port}`
+    );
+  });
+}
