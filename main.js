@@ -91,7 +91,7 @@ function parseData(text) {
 }
 
 // Надсилання JSON із кодом стану та заголовком.
-function sendJson(res, status, data) {
+function sendJsonDirect(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8'
   });
@@ -170,4 +170,25 @@ function sendFilteredJson(res, records, params) {
   }
 
   sendJson(res, 200, result);
+}
+
+// Збереження відповіді у файл через колбек.
+function sendJson(res, status, data) {
+  if (options.output === undefined) {
+    sendJsonDirect(res, status, data);
+    return;
+  }
+
+  const body = JSON.stringify(data, null, 2);
+
+  fs.writeFile(options.output, body, 'utf8', (err) => {
+    if (err) {
+      sendJsonDirect(res, 500, {
+        error: 'Не вдалося записати відповідь у файл'
+      });
+      return;
+    }
+
+    sendJsonDirect(res, status, data);
+  });
 }
