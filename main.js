@@ -130,7 +130,7 @@ function startServer() {
         return;
       }
 
-      sendJson(res, 200, records);
+      sendFilteredJson(res, records, url.searchParams);
     });
   });
 
@@ -144,4 +144,30 @@ function startServer() {
       `Сервер працює: http://${options.host}:${options.port}`
     );
   });
+}
+
+// Фільтрація відповідно до параметрів URL.
+function sendFilteredJson(res, records, params) {
+  let result = records;
+
+  if (params.has('max_price')) {
+    const maxPrice = toNumber(params.get('max_price'));
+
+    if (!Number.isFinite(maxPrice)) {
+      sendJson(res, 400, {
+        error: 'Параметр max_price має бути скінченним числом'
+      });
+      return;
+    }
+
+    result = result.filter(row => row.price < maxPrice);
+  }
+
+  if (params.get('furnished') === 'true') {
+    result = result.filter(
+      row => row.furnishingstatus === 'furnished'
+    );
+  }
+
+  sendJson(res, 200, result);
 }
